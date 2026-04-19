@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Bell, Search, Filter, CheckCircle, Clock, RefreshCw, LogIn, User, Lock, Heart, Terminal, Send } from 'lucide-react'
+import { Search, RefreshCw, User, Lock, Heart, Terminal, Send } from 'lucide-react'
 import { supabase } from './supabaseClient'
 
 function App() {
@@ -94,7 +94,7 @@ function App() {
     if (inquiryData?.user?.line_user_id) {
       try {
         const formattedPrice = new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(parseFloat(state.price))
-        const { data: funcData, error: funcError } = await supabase.functions.invoke('line-inquiry', {
+        const { error: funcError } = await supabase.functions.invoke('line-inquiry', {
           body: {
             userId: inquiryData.user.line_user_id,
             message: `✨✨ 報價結果出爐！ ✨✨\n單號：${inquiryData.inquiry_no}\n\n🔹 項目：${item.brand} / ${item.model}\n💰 報價：${formattedPrice}\n🚚 備註：${state.supplier || '採購沒寫特別備註喔'}\n\n辛苦啦！祝順利成交 🚀`
