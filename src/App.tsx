@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, RefreshCw, User, Lock, Heart, Terminal, Send } from 'lucide-react'
+import { Search, RefreshCw, User, Lock, Heart, Terminal, Send, Check, X } from 'lucide-react'
 import { supabase } from './supabaseClient'
 
 function App() {
@@ -12,7 +12,9 @@ function App() {
   const [historicalData, setHistoricalData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [formState, setFormState] = useState<Record<string, { price: string, supplier: string }>>({})
+  const [formState, setFormState] = useState<Record<string, { price: string, supplier: string, item_name: string }>>({})
+  const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null)
+  const [historyForm, setHistoryForm] = useState<{ item_name: string }>({ item_name: '' })
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,11 +70,28 @@ function App() {
     }
   }, [isLoggedIn])
 
-  const handleInputChange = (id: string, field: 'price' | 'supplier', value: string) => {
+  const handleInputChange = (id: string, field: 'price' | 'supplier' | 'item_name', value: string) => {
     setFormState(prev => ({
       ...prev,
       [id]: { ...prev[id], [field]: value }
     }))
+  }
+
+  const handleUpdateHistoryItem = async (itemId: string) => {
+    setLoading(true)
+    const { error } = await supabase
+      .from('linequo_inquiry_items')
+      .update({ item_name: historyForm.item_name })
+      .eq('id', itemId)
+
+    if (error) {
+      alert('❌ 更新失敗：' + error.message)
+    } else {
+      alert('✅ 儀器名稱已更新！')
+      setEditingHistoryId(null)
+      fetchHistory()
+    }
+    setLoading(false)
   }
 
   const handleComplete = async (inquiryId: string, item: any) => {
@@ -81,7 +100,11 @@ function App() {
 
     setLoading(true)
     await supabase.from('linequo_inquiry_items')
-      .update({ quoted_price: parseFloat(state.price), supplier_info: state.supplier })
+      .update({ 
+        quoted_price: parseFloat(state.price), 
+        supplier_info: state.supplier,
+        item_name: state.item_name || item.item_name || item.model
+      })
       .eq('id', item.id)
 
     const { data: inquiryData } = await supabase.from('linequo_inquiries')
@@ -210,7 +233,19 @@ function App() {
                 <div>
                   <span className="brand-tag">{item.brand}</span>
                   <div style={{ fontSize: '1.4rem', fontWeight: 900, marginTop: '0.5rem' }}>{item.model}</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '0.3rem' }}>{item.item_name}</div>
+                  {isProcurement ? (
+                    <div className="input-group" style={{ marginTop: '0.5rem' }}>
+                      <label style={{ fontSize: '0.75rem' }}>儀器名稱 (可修改)</label>
+                      <input 
+                        type="text" 
+                        value={formState[item.id]?.item_name ?? item.item_name ?? item.model} 
+                        onChange={e => handleInputChange(item.id, 'item_name', e.target.value)} 
+                        style={{ height: '2.5rem', fontSize: '0.9rem', marginTop: '0.2rem' }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '0.3rem' }}>{item.item_name}</div>
+                  )}
                 </div>
                 <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '1rem', border: '1px solid #e2e8f0' }}>
                   <div style={{ fontSize: '0.9rem' }}>🙋 <strong>業務員：</strong>{inquiry.user?.full_name}</div>
@@ -269,7 +304,44 @@ function App() {
                   <tr key={idx} style={{ verticalAlign: 'top' }}>
                     <td style={{ fontWeight: 800, color: 'var(--primary)' }}>{item.inquiry_no}</td>
                     <td style={{ color: 'var(--text-muted)' }}>{item.quoted_date ? new Date(item.quoted_date).toLocaleDateString('zh-TW') : 'N/A'}</td>
-                    <td style={{ fontWeight: 700 }}>{item.item_name}</td>
+                    <td style={{ fontWeight: 700 }}>
+                      {editingHistoryId === item.id ? (
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <input 
+                            type="text" 
+                            value={historyForm.item_name} 
+                            onChange={e => setHistoryForm({ item_name: e.target.value })}
+                            style={{ margin: 0, height: '2.2rem', padding: '0 0.5rem' }}
+                            autoFocus
+                          />
+                          <button 
+                            onClick={() => handleUpdateHistoryItem(item.id)} 
+                            style={{ padding: '0.4rem', borderRadius: '0.5rem' }}
+                            title="儲存"
+                          >
+                            <Check size={14} className={loading ? 'animate-spin' : ''} />
+                          </button>
+                          <button 
+                            onClick={() => setEditingHistoryId(null)} 
+                            style={{ padding: '0.4rem', background: '#fee2e2', color: '#ef4444', borderRadius: '0.5rem' }}
+                            title="取消"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div 
+                          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                          onClick={() => {
+                            setEditingHistoryId(item.id);
+                            setHistoryForm({ item_name: item.item_name || item.model });
+                          }}
+                        >
+                          {item.item_name}
+                          <span style={{ fontSize: '0.7rem', color: 'var(--primary)', opacity: 0.5 }}>✎</span>
+                        </div>
+                      )}
+                    </td>
                     <td><span className="brand-tag">{item.brand}</span></td>
                     <td style={{ color: 'var(--primary)', fontWeight: 800 }}>{item.model}</td>
                     <td style={{ textAlign: 'center' }}>{item.quantity}</td>
