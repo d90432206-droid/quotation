@@ -92,10 +92,12 @@ serve(async (req) => {
 
           if (insError) throw new Error(`主單建立失敗: ${insError.message}`);
 
-          // 4. 建立項目明細 (異步執行)
-          supabase.from('linequo_inquiry_items').insert({
+          // 4. 建立項目明細
+          const { error: itemError } = await supabase.from('linequo_inquiry_items').insert({
             inquiry_id: inquiry.id, brand: brand, model: model, name: model, quantity: quantity
-          }).then(({error}) => { if(error) console.error('明細寫入失敗:', error.message) });
+          })
+
+          if (itemError) throw new Error(`明細建立失敗: ${itemError.message}`);
 
           // 5. 通知採購人員 (撈取 role='procurement')
           const { data: proUsers } = await supabase.from('linequo_users')

@@ -81,7 +81,7 @@ function App() {
     setLoading(true)
     const { error } = await supabase
       .from('linequo_inquiry_items')
-      .update({ item_name: historyForm.item_name })
+      .update({ name: historyForm.item_name })
       .eq('id', itemId)
 
     if (error) {
@@ -103,7 +103,7 @@ function App() {
       .update({ 
         quoted_price: parseFloat(state.price), 
         supplier_info: state.supplier,
-        item_name: state.item_name || item.item_name || item.model
+        name: state.item_name || item.name || item.model
       })
       .eq('id', item.id)
 
@@ -238,13 +238,13 @@ function App() {
                       <label style={{ fontSize: '0.75rem' }}>儀器名稱 (可修改)</label>
                       <input 
                         type="text" 
-                        value={formState[item.id]?.item_name ?? item.item_name ?? item.model} 
+                        value={formState[item.id]?.item_name ?? item.name ?? item.model} 
                         onChange={e => handleInputChange(item.id, 'item_name', e.target.value)} 
                         style={{ height: '2.5rem', fontSize: '0.9rem', marginTop: '0.2rem' }}
                       />
                     </div>
                   ) : (
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '0.3rem' }}>{item.item_name}</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '0.3rem' }}>{item.name}</div>
                   )}
                 </div>
                 <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: '1rem', border: '1px solid #e2e8f0' }}>
