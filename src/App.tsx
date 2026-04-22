@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, RefreshCw, User, Lock, Heart, Terminal, Send, Check, X } from 'lucide-react'
+import { Search, RefreshCw, User, Lock, Heart, Terminal, Send, Check, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from './supabaseClient'
 
 function App() {
@@ -12,6 +12,12 @@ function App() {
   const [historicalData, setHistoricalData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchBrand, setSearchBrand] = useState('')
+  const [searchModel, setSearchModel] = useState('')
+  const [searchName, setSearchName] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
+
   const [formState, setFormState] = useState<Record<string, { price: string, supplier: string, item_name: string }>>({})
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null)
   const [historyForm, setHistoryForm] = useState<{ item_name: string }>({ item_name: '' })
@@ -69,6 +75,10 @@ function App() {
       fetchHistory()
     }
   }, [isLoggedIn])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, searchBrand, searchModel, searchName])
 
   const handleInputChange = (id: string, field: 'price' | 'supplier' | 'item_name', value: string) => {
     setFormState(prev => ({
@@ -171,11 +181,22 @@ function App() {
     )
   }
 
-  const filteredHistory = historicalData.filter(item => 
-    (item.item_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-    (item.brand?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-    (item.model?.toLowerCase() || '').includes(searchQuery.toLowerCase())
-  )
+  const filteredHistory = historicalData.filter(item => {
+    const matchQuery = !searchQuery || 
+      (item.item_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (item.brand?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (item.model?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+      
+    const matchBrand = !searchBrand || (item.brand?.toLowerCase() || '').includes(searchBrand.toLowerCase());
+    const matchModel = !searchModel || (item.model?.toLowerCase() || '').includes(searchModel.toLowerCase());
+    const matchName = !searchName || (item.item_name?.toLowerCase() || '').includes(searchName.toLowerCase());
+
+    return matchQuery && matchBrand && matchModel && matchName;
+  })
+
+  // 分頁計算
+  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage) || 1;
+  const paginatedHistory = filteredHistory.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="app-container">
@@ -278,9 +299,14 @@ function App() {
       ) : (
         <div className="glass-card" style={{ padding: 0 }}>
           <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ position: 'relative', maxWidth: '650px' }}>
-              <Search size={20} style={{ position: 'absolute', left: '1.2rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-              <input type="text" placeholder="輸入關鍵字（品牌、型號、品名）來尋寶..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: '3.5rem', margin: 0, height: '3.2rem' }} />
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
+                <Search size={20} style={{ position: 'absolute', left: '1.2rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input type="text" placeholder="綜合搜尋..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ paddingLeft: '3.5rem', margin: 0, height: '3.2rem', width: '100%' }} />
+              </div>
+              <input type="text" placeholder="篩選儀器名稱..." value={searchName} onChange={e => setSearchName(e.target.value)} style={{ flex: '1', minWidth: '150px', margin: 0, height: '3.2rem' }} />
+              <input type="text" placeholder="篩選廠牌..." value={searchBrand} onChange={e => setSearchBrand(e.target.value)} style={{ flex: '1', minWidth: '150px', margin: 0, height: '3.2rem' }} />
+              <input type="text" placeholder="篩選型號..." value={searchModel} onChange={e => setSearchModel(e.target.value)} style={{ flex: '1', minWidth: '150px', margin: 0, height: '3.2rem' }} />
             </div>
           </div>
           <div style={{ overflowX: 'auto' }}>
@@ -300,7 +326,7 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {filteredHistory.map((item, idx) => (
+                {paginatedHistory.map((item, idx) => (
                   <tr key={idx} style={{ verticalAlign: 'top' }}>
                     <td style={{ fontWeight: 800, color: 'var(--primary)' }}>{item.inquiry_no}</td>
                     <td style={{ color: 'var(--text-muted)' }}>{item.quoted_date ? new Date(item.quoted_date).toLocaleDateString('zh-TW') : 'N/A'}</td>
@@ -353,6 +379,30 @@ function App() {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              顯示第 {filteredHistory.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} 到 {Math.min(currentPage * itemsPerPage, filteredHistory.length)} 筆，共 {filteredHistory.length} 筆
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={{ padding: '0.4rem 0.8rem', background: 'white', border: '1px solid var(--border)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, transition: 'all 0.2s', fontWeight: 600, color: 'var(--text)' }}
+              >
+                <ChevronLeft size={16} /> 上一頁
+              </button>
+              <div style={{ fontWeight: 600, padding: '0 0.8rem', fontSize: '0.95rem' }}>
+                {currentPage} / {totalPages}
+              </div>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                style={{ padding: '0.4rem 0.8rem', background: 'white', border: '1px solid var(--border)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, transition: 'all 0.2s', fontWeight: 600, color: 'var(--text)' }}
+              >
+                下一頁 <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         </div>
       )}
